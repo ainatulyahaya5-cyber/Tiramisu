@@ -1,1564 +1,992 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ms" class="h-full bg-slate-950 text-slate-100">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Hi Hi Hey - Space Social Deduction Game</title>
+  <title>3D Horror Arcade Engine - Zombie & Museum</title>
+  
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  
+  <!-- Font Awesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Orbitron:wght@500;700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <!-- Three.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
-    
-    * {
+    body {
+      font-family: 'Inter', sans-serif;
+      touch-action: manipulation;
       user-select: none;
       -webkit-user-select: none;
-      box-sizing: border-box;
-      touch-action: manipulation;
+      overflow-x: hidden;
+    }
+    .font-horror { font-family: 'Creepster', cursive; }
+    .font-sci { font-family: 'Orbitron', sans-serif; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #090d16; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+    /* Glowing effects */
+    .glow-red { text-shadow: 0 0 12px rgba(220, 38, 38, 0.8); }
+    .glow-purple { text-shadow: 0 0 12px rgba(147, 51, 234, 0.8); }
+    .border-glow-red { box-shadow: 0 0 15px rgba(220, 38, 38, 0.3); }
+    .border-glow-purple { box-shadow: 0 0 15px rgba(147, 51, 234, 0.3); }
+
+    /* Code View Tabs Styling */
+    .tab-btn.active {
+      border-bottom: 2px solid #ef4444;
+      color: #f87171;
+      background-color: rgba(30, 41, 59, 0.6);
     }
 
-    body {
-      font-family: 'Fredoka', cursive, sans-serif;
-      background-color: #0b0f19;
-      color: #fff;
-      overflow: hidden;
-      margin: 0;
-      padding: 0;
-      height: 100vh;
-      width: 100vw;
+    /* Vignette & Damage Flash Overlays */
+    #damage-flash {
+      transition: opacity 0.15s ease-out;
+      pointer-events: none;
     }
-
-    /* Custom Scrollbar for Chat & Menus */
-    ::-webkit-scrollbar {
-      width: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: rgba(0,0,0,0.2);
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.3);
-      border-radius: 4px;
-    }
-
-    /* Glowing animations */
-    .glow-title {
-      text-shadow: 0 0 15px #3b82f6, 0 0 30px #8b5cf6, 0 0 45px #ec4899;
-    }
-    .glow-box {
-      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
-    }
-    .glow-red {
-      box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
-    }
-
-    /* Mobile Joystick */
-    #joystick-container {
-      touch-action: none;
-    }
-
-    /* Modal Backdrop Blur */
-    .modal-backdrop {
-      backdrop-filter: blur(8px);
-      background-color: rgba(10, 15, 30, 0.85);
-    }
-
-    /* Pixelated Canvas Render */
-    canvas {
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
+    .vignette {
+      box-shadow: inset 0 0 80px rgba(0,0,0,0.85);
+      pointer-events: none;
     }
   </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen select-none">
 
-  <!-- MAIN CONTAINER -->
-  <div id="game-app" class="relative w-full h-full max-w-7xl max-h-[900px] bg-gray-900 overflow-hidden flex flex-col md:rounded-3xl border-0 md:border-4 border-gray-800 shadow-2xl">
+<body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
 
-    <!-- CANVAS ENGINE -->
-    <canvas id="gameCanvas" class="w-full h-full block bg-black cursor-crosshair"></canvas>
-
-    <!-- TOP HUD OVERLAY -->
-    <div id="hud-top" class="absolute top-3 left-3 right-3 flex justify-between items-center pointer-events-none z-10 hidden">
-      <!-- Task Progress Bar -->
-      <div class="bg-gray-900/90 backdrop-blur-md border border-gray-700/80 p-2 px-4 rounded-2xl flex items-center gap-3 shadow-lg pointer-events-auto">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-list-check text-green-400 text-lg"></i>
-          <span class="text-xs md:text-sm font-bold tracking-wider uppercase text-gray-300">Total Tasks</span>
-        </div>
-        <div class="w-32 md:w-48 h-4 bg-gray-950 rounded-full overflow-hidden border border-gray-700 relative">
-          <div id="task-progress-fill" class="h-full bg-gradient-to-r from-green-500 to-emerald-300 w-0 transition-all duration-300"></div>
-        </div>
-        <span id="task-progress-text" class="text-xs font-bold text-green-400">0%</span>
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="w-full bg-slate-900/90 border-b border-slate-800 backdrop-blur-md px-4 py-3 sticky top-0 z-50 flex items-center justify-between shadow-xl">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-purple-600 flex items-center justify-center shadow-lg">
+        <i class="fa-solid fa-cube text-white text-xl"></i>
       </div>
-
-      <!-- Room Title & Role Display -->
-      <div class="flex items-center gap-2">
-        <div id="role-badge" class="bg-blue-600/90 text-white text-xs md:text-sm font-black px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg border border-white/20 pointer-events-auto">
-          CREWMATE
-        </div>
-        <button id="map-toggle-btn" class="bg-gray-800/90 hover:bg-gray-700 text-white p-2.5 rounded-full border border-gray-600 shadow-lg pointer-events-auto transition active:scale-95">
-          <i class="fa-solid fa-map text-sm md:text-base"></i>
-        </button>
+      <div>
+        <h1 class="text-lg md:text-xl font-black font-sci text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-purple-400 to-amber-400 tracking-wider">
+          SERAM 3D ARCADE
+        </h1>
+        <p class="text-[10px] md:text-xs text-slate-400">Enjin Tiga Dimensi WebGL | Powered by Three.js</p>
       </div>
     </div>
 
-    <!-- SABOTAGE ALERT BANNER -->
-    <div id="sabotage-banner" class="absolute top-16 left-1/2 -translate-x-1/2 bg-red-600/90 text-white font-black px-6 py-2 rounded-full uppercase tracking-widest animate-pulse border-2 border-yellow-400 shadow-red-600/50 shadow-lg z-10 hidden text-sm md:text-base">
-      <i class="fa-solid fa-triangle-exclamation mr-2 text-yellow-300"></i>
-      <span id="sabotage-text">O2 CRITICAL: 30s!</span>
-    </div>
-
-    <!-- BOTTOM RIGHT ACTION BUTTONS HUD -->
-    <div id="hud-actions" class="absolute bottom-4 right-4 flex flex-col md:flex-row gap-3 z-10 hidden">
-      <!-- SABOTAGE BUTTON (Impostor only) -->
-      <button id="btn-sabotage" class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-800 border-2 border-purple-400 flex flex-col items-center justify-center text-white font-bold text-xs shadow-lg active:scale-90 transition disabled:opacity-40 disabled:pointer-events-none hidden">
-        <i class="fa-solid fa-radiation text-xl mb-0.5"></i>
-        <span>SABO</span>
+    <!-- Controls / Info Button -->
+    <div class="flex items-center gap-2">
+      <button id="btn-return-menu" onclick="returnToMenu()" class="hidden px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 transition flex items-center gap-2 cursor-pointer">
+        <i class="fa-solid fa-house text-red-400"></i>
+        <span class="hidden sm:inline">Menu Utama</span>
       </button>
-
-      <!-- VENT BUTTON (Impostor only) -->
-      <button id="btn-vent" class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-900 border-2 border-gray-400 flex flex-col items-center justify-center text-white font-bold text-xs shadow-lg active:scale-90 transition disabled:opacity-40 disabled:pointer-events-none hidden">
-        <i class="fa-solid fa-wind text-xl mb-0.5"></i>
-        <span>VENT</span>
-      </button>
-
-      <!-- REPORT BUTTON -->
-      <button id="btn-report" class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-red-500 to-red-800 border-2 border-red-300 flex flex-col items-center justify-center text-white font-bold text-xs shadow-lg active:scale-90 transition disabled:opacity-40 disabled:pointer-events-none">
-        <i class="fa-solid fa-bullhorn text-xl mb-0.5"></i>
-        <span>REPORT</span>
-      </button>
-
-      <!-- KILL BUTTON (Impostor only) -->
-      <button id="btn-kill" class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-red-600 to-rose-950 border-2 border-red-500 flex flex-col items-center justify-center text-white font-bold text-xs shadow-lg active:scale-90 transition disabled:opacity-40 disabled:pointer-events-none hidden">
-        <i class="fa-solid fa-skull text-xl mb-0.5"></i>
-        <span>KILL</span>
-      </button>
-
-      <!-- USE / TASK BUTTON -->
-      <button id="btn-use" class="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 border-2 border-cyan-300 flex flex-col items-center justify-center text-white font-extrabold text-sm shadow-xl active:scale-90 transition disabled:opacity-40 disabled:pointer-events-none">
-        <i class="fa-solid fa-hand text-2xl mb-1"></i>
-        <span>USE</span>
-      </button>
-    </div>
-
-    <!-- TOUCH JOYSTICK (MOBILE) -->
-    <div id="joystick-container" class="absolute bottom-6 left-6 w-32 h-32 bg-gray-800/40 rounded-full border-2 border-white/20 z-10 hidden md:hidden">
-      <div id="joystick-knob" class="absolute w-12 h-12 bg-white/40 rounded-full left-10 top-10 transform -translate-x-1/2 -translate-y-1/2 shadow-md"></div>
-    </div>
-
-    <!-- MINIMAP OVERLAY -->
-    <div id="minimap-modal" class="absolute inset-0 bg-black/80 backdrop-blur-md z-30 flex items-center justify-center p-4 hidden">
-      <div class="relative bg-gray-900 border-2 border-gray-700 rounded-3xl p-4 w-full max-w-2xl text-center">
-        <button id="close-minimap-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-        <h3 class="text-xl font-bold text-blue-400 mb-3"><i class="fa-solid fa-map-location-dot mr-2"></i> Station Minimap</h3>
-        <div class="relative w-full aspect-video bg-gray-950 rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center">
-          <canvas id="minimapCanvas" class="w-full h-full"></canvas>
-        </div>
+      <div class="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>Sedia</span>
       </div>
     </div>
+  </header>
 
-    <!-- START MENU OVERLAY -->
-    <div id="start-menu" class="absolute inset-0 modal-backdrop z-40 flex flex-col items-center justify-center p-6 text-center overflow-y-auto">
-      <div class="max-w-md w-full bg-gray-900/90 border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl glow-box flex flex-col items-center">
-        <!-- Logo Header -->
-        <div class="mb-6">
-          <div class="inline-block p-3 rounded-2xl bg-gradient-to-tr from-blue-600 via-purple-600 to-pink-500 mb-2">
-            <i class="fa-solid fa-user-astronaut text-4xl text-white"></i>
-          </div>
-          <h1 class="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-pink-400 to-yellow-300 tracking-wider glow-title uppercase">
-            HI HI HEY
-          </h1>
-          <p class="text-xs text-gray-400 tracking-widest mt-1 uppercase font-semibold">Space Deduction & Survival</p>
+  <!-- MAIN GAME CONTAINER -->
+  <main class="w-full max-w-6xl mx-auto p-2 sm:p-4 flex-grow flex flex-col items-center justify-center gap-4">
+
+    <!-- GAME VIEWPORT & CANVAS CONTAINER -->
+    <div id="game-view" class="relative w-full aspect-[4/3] md:aspect-[16/9] max-h-[640px] bg-black rounded-3xl overflow-hidden border-2 border-slate-800 shadow-2xl flex items-center justify-center">
+
+      <!-- THREE.JS CANVAS CONTAINER -->
+      <div id="canvas-container" class="w-full h-full block bg-black cursor-crosshair"></div>
+
+      <!-- DAMAGE FLASH EFFECT OVERLAY -->
+      <div id="damage-flash" class="absolute inset-0 bg-red-600/30 opacity-0 pointer-events-none z-10"></div>
+      <div class="absolute inset-0 vignette z-10"></div>
+
+      <!-- CROSSHAIR -->
+      <div id="crosshair" class="absolute inset-0 pointer-events-none z-20 flex items-center justify-center hidden">
+        <div class="w-4 h-4 border-2 border-red-500/80 rounded-full flex items-center justify-center">
+          <div class="w-1 h-1 bg-red-400 rounded-full"></div>
         </div>
+      </div>
 
-        <!-- Customization -->
-        <div class="w-full space-y-4 mb-6">
-          <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 text-left">Crewmate Name</label>
-            <input type="text" id="player-nickname" value="SpaceCadet" maxlength="10" class="w-full bg-gray-800 border-2 border-gray-700 rounded-xl px-4 py-2.5 text-center text-white font-bold focus:border-blue-500 outline-none transition">
+      <!-- HUD OVERLAY (Zombie / Museum) -->
+      <div id="hud-overlay" class="absolute inset-x-0 top-0 p-4 z-20 pointer-events-none flex justify-between items-start hidden">
+        <!-- Health & Ammo Stats -->
+        <div class="flex flex-col gap-2">
+          <!-- Health Bar -->
+          <div class="bg-slate-900/80 backdrop-blur-md border border-slate-700/80 rounded-xl p-2.5 flex items-center gap-3 w-48 sm:w-60 shadow-lg">
+            <i class="fa-solid fa-heart text-red-500 text-lg animate-pulse"></i>
+            <div class="flex-1">
+              <div class="flex justify-between text-[11px] font-bold text-slate-300 mb-1">
+                <span>NYAWA</span>
+                <span id="txt-health">100 HP</span>
+              </div>
+              <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden">
+                <div id="bar-health" class="h-full bg-gradient-to-r from-red-600 to-emerald-500 w-full transition-all duration-300"></div>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 text-left">Choose Suit Color</label>
-            <div id="color-picker" class="flex justify-center gap-2 flex-wrap">
-              <!-- Rendered via JS -->
+          <!-- Sanity or Ammo Box -->
+          <div id="box-secondary-stat" class="bg-slate-900/80 backdrop-blur-md border border-slate-700/80 rounded-xl p-2.5 flex items-center gap-3 w-48 sm:w-60 shadow-lg">
+            <i id="icon-secondary" class="fa-solid fa-gun text-amber-400 text-lg"></i>
+            <div class="flex-1">
+              <div class="flex justify-between text-[11px] font-bold text-slate-300 mb-1">
+                <span id="lbl-secondary">PELURU</span>
+                <span id="txt-secondary">30 / 120</span>
+              </div>
+              <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden">
+                <div id="bar-secondary" class="h-full bg-amber-500 w-full transition-all duration-300"></div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Game Mode & Play Buttons -->
-        <div class="w-full space-y-3">
-          <button id="btn-play-solo" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-extrabold text-lg text-white shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
-            <i class="fa-solid fa-play"></i> Play Solo (VS AI Bots)
-          </button>
-          
-          <button id="btn-how-to" class="w-full py-2.5 rounded-2xl bg-gray-800 hover:bg-gray-700 font-bold text-sm text-gray-300 border border-gray-700 transition">
-            <i class="fa-solid fa-circle-question mr-1"></i> How to Play
+        <!-- Objective & Score -->
+        <div class="bg-slate-900/80 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 text-right shadow-lg max-w-[200px]">
+          <span id="txt-mode-title" class="block text-[10px] font-bold font-sci text-red-400 uppercase tracking-widest">ZOMBIE APOKALIPS</span>
+          <span id="txt-score" class="text-xl sm:text-2xl font-black font-sci text-amber-400">SKOR: 0</span>
+          <p id="txt-objective" class="text-[10px] text-slate-300 mt-1 font-medium leading-tight">Hapuskan semua zombie!</p>
+        </div>
+      </div>
+
+      <!-- TOUCH CONTROLS FOR MOBILE -->
+      <div id="touch-controls" class="absolute inset-0 pointer-events-none z-20 flex justify-between items-end p-4 hidden">
+        <!-- Virtual Joystick Area -->
+        <div id="joystick-zone" class="w-28 h-28 bg-slate-900/50 rounded-full border-2 border-slate-600/50 backdrop-blur-sm pointer-events-auto relative flex items-center justify-center">
+          <div id="joystick-knob" class="w-12 h-12 bg-red-600/80 rounded-full shadow-md transform translate-x-0 translate-y-0"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3 pointer-events-auto">
+          <button id="btn-touch-action" class="w-14 h-14 bg-red-600/80 active:bg-red-500 text-white rounded-full flex items-center justify-center text-xl shadow-xl border-2 border-red-400">
+            <i id="icon-touch-action" class="fa-solid fa-crosshairs"></i>
           </button>
         </div>
       </div>
-    </div>
 
-    <!-- HOW TO PLAY MODAL -->
-    <div id="how-to-modal" class="absolute inset-0 modal-backdrop z-50 flex items-center justify-center p-4 hidden">
-      <div class="bg-gray-900 border border-gray-800 rounded-3xl p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto relative">
-        <button id="close-how-to" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-        <h2 class="text-2xl font-black text-blue-400 mb-4 flex items-center gap-2">
-          <i class="fa-solid fa-book-open"></i> How to Play "Hi Hi Hey"
+      <!-- MENU OVERLAY -->
+      <div id="menu-overlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center">
+        <h2 class="text-3xl md:text-5xl font-black font-horror text-red-600 glow-red mb-2 uppercase tracking-widest">
+          PILIH MISTERI SERAM 3D
         </h2>
-        <div class="space-y-4 text-sm text-gray-300 leading-relaxed text-left">
-          <div class="bg-gray-800/60 p-3 rounded-xl border border-gray-700">
-            <h4 class="font-bold text-green-400 text-base mb-1">👨‍🚀 Crewmates Objective</h4>
-            <p>Complete all tasks located across the station rooms or identify and eject the dangerous <b>Hey-postor</b>!</p>
-          </div>
-          <div class="bg-gray-800/60 p-3 rounded-xl border border-gray-700">
-            <h4 class="font-bold text-red-400 text-base mb-1">🔪 Hey-postor Objective</h4>
-            <p>Sneak around, eliminate crewmates, use vents to travel fast, and sabotage station systems (O2 / Lights) without getting caught.</p>
-          </div>
-          <div class="bg-gray-800/60 p-3 rounded-xl border border-gray-700">
-            <h4 class="font-bold text-yellow-400 text-base mb-1">🎮 Controls</h4>
-            <p>• <b>Movement:</b> Keyboard WASD / Arrow Keys or Mobile Touch Joystick.<br>
-            • <b>Interact / Task:</b> Click 'USE' or press <b>E / Space</b> when near consoles.<br>
-            • <b>Report Body:</b> Click 'REPORT' or press <b>R</b>.<br>
-            • <b>Kill / Vent (Impostor):</b> Click 'KILL' / 'VENT' or press <b>Q / V</b>.</p>
-          </div>
-        </div>
-      </div>
-    </div>
+        <p class="text-xs md:text-sm text-slate-400 mb-6 max-w-lg">Pilih antara aksi tembak zombie 3D bergelombang atau pengembaraan stealth misteri muzium terbiar.</p>
 
-    <!-- TASK MINI-GAME MODAL CONTAINER -->
-    <div id="task-modal" class="absolute inset-0 bg-black/85 backdrop-blur-md z-30 flex items-center justify-center p-4 hidden">
-      <div class="relative bg-gray-900 border-4 border-gray-700 rounded-3xl p-6 w-full max-w-lg shadow-2xl flex flex-col items-center">
-        <button id="close-task-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-        <h3 id="task-title" class="text-xl font-black text-cyan-400 uppercase tracking-wide mb-4">Fix Wiring Task</h3>
-        
-        <!-- TASK CONTAINER CONTENT AREA -->
-        <div id="task-content" class="w-full bg-gray-950 rounded-2xl border border-gray-800 p-4 min-h-[260px] flex items-center justify-center relative overflow-hidden">
-          <!-- Mini-games injected here dynamically -->
-        </div>
-      </div>
-    </div>
-
-    <!-- EMERGENCY MEETING / VOTING SCREEN -->
-    <div id="meeting-modal" class="absolute inset-0 bg-slate-950/95 backdrop-blur-lg z-40 flex flex-col p-4 md:p-8 hidden">
-      <!-- Top Meeting Header -->
-      <div class="flex justify-between items-center mb-4 border-b border-gray-800 pb-3">
-        <div>
-          <h2 id="meeting-header-title" class="text-2xl md:text-3xl font-black text-red-500 uppercase tracking-wider flex items-center gap-3">
-            <i class="fa-solid fa-triangle-exclamation animate-bounce"></i> Emergency Meeting
-          </h2>
-          <p id="meeting-subtitle" class="text-xs md:text-sm text-gray-400 font-semibold">Who is the Hey-postor among us?</p>
-        </div>
-        <div class="bg-gray-800 border border-gray-700 rounded-2xl px-4 py-2 text-right">
-          <span class="block text-[10px] text-gray-400 font-bold uppercase">Time Remaining</span>
-          <span id="voting-timer" class="text-xl font-extrabold text-yellow-400">30s</span>
-        </div>
-      </div>
-
-      <!-- Main Meeting Grid (Players & Chat) -->
-      <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-hidden">
-        <!-- Player List Grid -->
-        <div id="voting-players-grid" class="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto pr-1">
-          <!-- Rendered by JS -->
-        </div>
-
-        <!-- Chat / Discussion Log -->
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-3 flex flex-col h-full overflow-hidden">
-          <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-            <i class="fa-solid fa-comments"></i> Discussion Log
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+          <!-- Game 1 Card -->
+          <div id="card-zombie" onclick="launchGame('zombie')" class="bg-gradient-to-b from-slate-900 to-red-950/40 border-2 border-red-800/80 hover:border-red-500 rounded-3xl p-6 flex flex-col items-center justify-between transition duration-300 transform hover:-translate-y-1 border-glow-red group cursor-pointer active:scale-95">
+            <div>
+              <div class="w-16 h-16 rounded-2xl bg-red-600/20 border border-red-500/50 flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition">
+                <i class="fa-solid fa-biohazard text-3xl text-red-500"></i>
+              </div>
+              <h3 class="text-xl md:text-2xl font-extrabold font-sci text-red-400 mb-2 uppercase tracking-wide">ZOMBIE APOKALIPS 3D</h3>
+              <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                Lawan gelombang zombie 3D tanpa henti! Kumpulkan peluru, bertahan hidup, dan elakkan serangan zombie gergasi.
+              </p>
+            </div>
+            <button class="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-extrabold font-sci text-xs md:text-sm rounded-xl shadow-lg transition tracking-widest text-center">
+              MAIN SURVIVAL 3D
+            </button>
           </div>
-          <div id="chat-messages" class="flex-1 overflow-y-auto space-y-2 text-xs md:text-sm p-1">
-            <!-- Messages injected dynamically -->
-          </div>
-          <div class="mt-2 flex gap-2">
-            <input type="text" id="chat-input" placeholder="Say something..." class="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-500">
-            <button id="btn-send-chat" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-xl text-xs">
-              <i class="fa-solid fa-paper-plane"></i>
+
+          <!-- Game 2 Card -->
+          <div id="card-museum" onclick="launchGame('museum')" class="bg-gradient-to-b from-slate-900 to-purple-950/40 border-2 border-purple-800/80 hover:border-purple-500 rounded-3xl p-6 flex flex-col items-center justify-between transition duration-300 transform hover:-translate-y-1 border-glow-purple group cursor-pointer active:scale-95">
+            <div>
+              <div class="w-16 h-16 rounded-2xl bg-purple-600/20 border border-purple-500/50 flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition">
+                <i class="fa-solid fa-ghost text-3xl text-purple-400"></i>
+              </div>
+              <h3 class="text-xl md:text-2xl font-extrabold font-sci text-purple-300 mb-2 uppercase tracking-wide">MUSEUM HORROR 3D</h3>
+              <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                Terokai muzium gelap 3D dengan lampu suluh. Elak patung berpuaka bergerak, kumpul 3 relik purba & cari jalan keluar!
+              </p>
+            </div>
+            <button class="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-extrabold font-sci text-xs md:text-sm rounded-xl shadow-lg transition tracking-widest text-center">
+              MASUK MUZIUM 3D
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Bottom Action Row -->
-      <div class="mt-4 flex justify-between items-center pt-3 border-t border-gray-800">
-        <button id="btn-skip-vote" class="bg-gray-800 hover:bg-gray-700 border border-gray-600 font-bold px-6 py-2.5 rounded-xl text-xs md:text-sm transition text-gray-300">
-          <i class="fa-solid fa-forward mr-1"></i> Skip Vote
-        </button>
-        <span id="vote-status-text" class="text-xs font-semibold text-gray-400">Select a player to cast your vote</span>
+      <!-- CLICK TO START / UNLOCK MOUSE NOTICE OVERLAY -->
+      <div id="pointer-lock-notice" onclick="requestControlLock()" class="absolute inset-0 bg-black/80 backdrop-blur-sm z-25 flex flex-col items-center justify-center text-center cursor-pointer hidden">
+        <i class="fa-solid fa-hand-pointer text-4xl text-amber-400 mb-3 animate-bounce"></i>
+        <h3 class="text-2xl font-black font-sci text-white mb-1">KLIK DI SINI UNTUK MULA / KAWAL 3D</h3>
+        <p class="text-xs text-slate-300 max-w-md px-4 mt-2">
+          Guna papan kekunci <span class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">[WASD]</span> untuk bergerak, <span class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">[Tetikus]</span> untuk pandangan 360°, & <span class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">[Klik Kiri / Space]</span> untuk bertindak.
+        </p>
       </div>
-    </div>
 
-    <!-- GAME OVER / RESULT SCREEN -->
-    <div id="game-over-modal" class="absolute inset-0 modal-backdrop z-50 flex flex-col items-center justify-center p-6 text-center hidden">
-      <div class="max-w-md w-full bg-gray-900 border-2 border-gray-700 rounded-3xl p-8 shadow-2xl flex flex-col items-center">
-        <h1 id="game-over-title" class="text-4xl md:text-5xl font-black text-red-500 uppercase tracking-widest mb-2">VICTORY</h1>
-        <p id="game-over-subtitle" class="text-sm font-semibold text-gray-300 mb-6">The Crewmates completed all tasks!</p>
-        
-        <div id="impostors-reveal" class="bg-gray-950 border border-gray-800 rounded-2xl p-4 w-full mb-6">
-          <span class="block text-xs font-bold text-gray-400 uppercase mb-2">The Hey-postor was:</span>
-          <div id="impostors-list" class="flex justify-center gap-3">
-            <!-- Impostor icon & name -->
-          </div>
+      <!-- GAME OVER / VICTORY MODAL -->
+      <div id="modal-end" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-40 flex flex-col items-center justify-center p-6 text-center hidden">
+        <h2 id="end-title" class="text-4xl md:text-6xl font-black font-horror text-red-600 glow-red mb-2 uppercase">
+          ANDA TEWAS!
+        </h2>
+        <p id="end-desc" class="text-sm text-slate-300 mb-6 max-w-md">Kumpulan zombie berjaya menembusi benteng pertahanan anda.</p>
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl mb-6 min-w-[200px]">
+          <span class="block text-xs font-bold text-slate-400 uppercase">SKOR AKHIR</span>
+          <span id="end-score" class="text-3xl font-extrabold font-sci text-amber-400">0</span>
         </div>
-
-        <button id="btn-play-again" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 font-black text-lg text-white shadow-xl hover:scale-105 active:scale-95 transition">
-          <i class="fa-solid fa-rotate-right mr-2"></i> Play Again
+        <button id="btn-restart" onclick="restartGame()" class="px-8 py-3 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-extrabold font-sci text-sm rounded-xl shadow-xl transition active:scale-95 cursor-pointer">
+          CUBA LAGI
         </button>
       </div>
     </div>
 
-  </div>
+    <!-- CODE EDITOR & VIEWER (TABBED SYSTEM) -->
+    <div class="w-full bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl mt-2">
+      <!-- Tab Headers -->
+      <div class="flex items-center justify-between bg-slate-950/80 border-b border-slate-800 px-4 py-2">
+        <div class="flex items-center gap-1 overflow-x-auto">
+          <button id="tab-btn-html" onclick="switchCodeTab('html')" class="tab-btn active px-4 py-2 text-xs font-bold rounded-t-xl transition text-slate-400 hover:text-white flex items-center gap-2">
+            <i class="fa-brands fa-html5 text-orange-500"></i> index.html
+          </button>
+          <button id="tab-btn-css" onclick="switchCodeTab('css')" class="tab-btn px-4 py-2 text-xs font-bold rounded-t-xl transition text-slate-400 hover:text-white flex items-center gap-2">
+            <i class="fa-brands fa-css3-alt text-blue-500"></i> style.css
+          </button>
+          <button id="tab-btn-js" onclick="switchCodeTab('js')" class="tab-btn px-4 py-2 text-xs font-bold rounded-t-xl transition text-slate-400 hover:text-white flex items-center gap-2">
+            <i class="fa-brands fa-js text-yellow-400"></i> app.js
+          </button>
+        </div>
+        <button id="btn-copy-code" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg transition flex items-center gap-2 cursor-pointer">
+          <i class="fa-regular fa-copy"></i>
+          <span>Salin Kod Tab Ini</span>
+        </button>
+      </div>
 
-  <!-- MAIN SCRIPT -->
+      <!-- Tab Content Area -->
+      <div class="p-4 bg-slate-950/90 max-h-60 overflow-y-auto font-mono text-xs text-slate-300">
+        <pre id="code-html" class="tab-content"><code id="code-text-html">&lt;!-- index.html --&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html lang="ms"&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8"&gt;
+  &lt;title&gt;3D Horror Arcade&lt;/title&gt;
+  &lt;link rel="stylesheet" href="style.css"&gt;
+  &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div id="canvas-container"&gt;&lt;/div&gt;
+  &lt;script src="app.js"&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+        <pre id="code-css" class="tab-content hidden"><code id="code-text-css">/* style.css */
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #000;
+  font-family: 'Inter', sans-serif;
+}
+#canvas-container {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}</code></pre>
+
+        <pre id="code-js" class="tab-content hidden"><code id="code-text-js">// app.js - WebGL Three.js Game Logic
+let scene, camera, renderer;
+// Kod game 3D dimuatkan secara dinamik di sini...</code></pre>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="w-full text-center py-3 text-[11px] text-slate-400 border-t border-slate-900 bg-slate-950">
+    <p>© 2026 3D Horror Arcade Engine. Dibina khas menggunakan HTML, CSS, & Three.js JavaScript.</p>
+  </footer>
+
+  <!-- MAIN GAME ENGINE JAVASCRIPT -->
   <script>
     /* ==========================================================================
-       HI HI HEY - SOCIAL DEDUCTION GAME ENGINE
+       SYNTHESIS AUDIO ENGINE (NO EXTERNAL AUDIO FILES NEEDED)
        ========================================================================== */
-
-    // Sound Synthesizer via Web Audio API
     class SoundEngine {
       constructor() {
         this.ctx = null;
+        this.enabled = true;
       }
       init() {
         if (!this.ctx) {
-          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
         }
       }
-      playStep() {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(120, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.08);
-        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.08);
+      playShoot() {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.12);
+        } catch(e){}
       }
-      playKill() {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.3);
-        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.3);
+      playHit() {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(40, this.ctx.currentTime + 0.2);
+          gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.2);
+        } catch(e){}
       }
-      playAlarm() {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(600, this.ctx.currentTime);
-        osc.frequency.setValueAtTime(800, this.ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.3);
-      }
-      playTaskComplete() {
-        if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, now); // C5
-        osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
-        osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(now + 0.35);
-      }
-      playVent() {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.2);
-        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.2);
+      playPickup() {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.15);
+        } catch(e){}
       }
     }
 
     const sound = new SoundEngine();
 
-    // COLOR PALETTE FOR CREWMATES
-    const COLORS = {
-      red: '#ef4444',
-      blue: '#3b82f6',
-      green: '#10b981',
-      pink: '#ec4899',
-      orange: '#f97316',
-      yellow: '#eab308',
-      purple: '#a855f7',
-      cyan: '#06b6d4'
+    /* ==========================================================================
+       THREE.JS 3D HORROR GAME ENGINE LOGIC
+       ========================================================================== */
+    let scene, camera, renderer;
+    let activeMode = null; // 'zombie' or 'museum'
+    let isRunning = false;
+    let clock = new THREE.Clock();
+
+    // Player State
+    let player = {
+      position: new THREE.Vector3(0, 1.6, 0),
+      rotation: new THREE.Euler(0, 0, 0, 'YXZ'),
+      health: 100,
+      maxHealth: 100,
+      score: 0,
+      ammo: 30,
+      maxAmmo: 120,
+      sanity: 100,
+      relicsCollected: 0
     };
 
-    // GAME CONFIGURATION & MAP LAYOUT
-    const MAP_WIDTH = 2200;
-    const MAP_HEIGHT = 1600;
+    // Controls State
+    const keys = { w: false, a: false, s: false, d: false, space: false };
+    let yaw = 0, pitch = 0;
+    let isMouseDown = false;
+    let lastShotTime = 0;
 
-    const ROOMS = [
-      { id: 'cafeteria', name: 'Cafeteria', x: 800, y: 200, w: 600, h: 400, color: '#1e293b' },
-      { id: 'weapons', name: 'Weapons', x: 1500, y: 200, w: 450, h: 350, color: '#1e293b' },
-      { id: 'navigation', name: 'Navigation', x: 1600, y: 650, w: 450, h: 400, color: '#1e293b' },
-      { id: 'engine', name: 'Engine Room', x: 150, y: 400, w: 450, h: 500, color: '#1e293b' },
-      { id: 'electrical', name: 'Electrical', x: 700, y: 800, w: 450, h: 400, color: '#1e293b' },
-      { id: 'medbay', name: 'MedBay', x: 700, y: 300, w: 350, h: 350, color: '#1e293b' },
-      { id: 'o2', name: 'O2 Room', x: 1300, y: 700, w: 250, h: 300, color: '#1e293b' }
-    ];
+    // Game Entities
+    let zombies = [];
+    let museumStatues = [];
+    let items = [];
+    let flashlight = null;
 
-    // MAP WALLS (Obstacles for collision)
-    const WALLS = [
-      // Outer Station Boundaries
-      { x: 100, y: 100, w: 2000, h: 20 },
-      { x: 100, y: 100, w: 20, h: 1400 },
-      { x: 2080, y: 100, w: 20, h: 1400 },
-      { x: 100, y: 1480, w: 2000, h: 20 },
-      // Interior Room Partition Walls
-      { x: 650, y: 200, w: 20, h: 500 },
-      { x: 1400, y: 200, w: 20, h: 400 },
-      { x: 650, y: 700, w: 600, h: 20 },
-      { x: 1250, y: 1100, w: 400, h: 20 }
-    ];
+    // DOM Elements
+    const container = document.getElementById('canvas-container');
 
-    // TASK CONSOLES
-    const TASK_LOCATIONS = [
-      { id: 1, roomId: 'cafeteria', type: 'wiring', name: 'Fix Wiring', x: 1100, y: 230 },
-      { id: 2, roomId: 'electrical', type: 'sliders', name: 'Calibrate Power', x: 750, y: 830 },
-      { id: 3, roomId: 'engine', type: 'keypad', name: 'Enter Launch Code', x: 220, y: 450 },
-      { id: 4, roomId: 'weapons', type: 'hold', name: 'Clear Asteroids', x: 1700, y: 240 },
-      { id: 5, roomId: 'navigation', type: 'sliders', name: 'Chart Course', x: 1800, y: 700 },
-      { id: 6, roomId: 'medbay', type: 'hold', name: 'Inspect Scan', x: 800, y: 350 }
-    ];
+    function initEngine() {
+      // Create Scene
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x05050a, 0.08);
 
-    // VENTS (Impostor Travel Points)
-    const VENTS = [
-      { id: 'v1', x: 900, y: 250, roomId: 'cafeteria' },
-      { id: 'v2', x: 800, y: 850, roomId: 'electrical' },
-      { id: 'v3', x: 300, y: 450, roomId: 'engine' },
-      { id: 'v4', x: 1750, y: 250, roomId: 'weapons' },
-      { id: 'v5', x: 1750, y: 750, roomId: 'navigation' }
-    ];
+      // Create Camera
+      camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 100);
+      camera.position.set(0, 1.6, 0);
 
-    // GAME STATE VARIABLES
-    let canvas, ctx;
-    let minimapCanvas, minimapCtx;
-    let gameState = 'MENU'; // MENU, PLAYING, MEETING, GAMEOVER
-    let player = null;
-    let players = [];
-    let deadBodies = [];
-    let keys = {};
-    let joystick = { active: false, startX: 0, startY: 0, currX: 0, currY: 0, dirX: 0, dirY: 0 };
-    
-    // Sabotage state
-    let activeSabotage = null; // null, 'O2', 'LIGHTS'
-    let sabotageTimer = 30;
-    let sabotageInterval = null;
+      // Create Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    // Meeting state
-    let meetingTimer = 30;
-    let meetingInterval = null;
-    let votes = {};
-    let hasVoted = false;
-
-    // Camera offset
-    let cameraX = 0;
-    let cameraY = 0;
-
-    // Selected Player Customization
-    let selectedColor = 'blue';
-
-    /* ==========================================================================
-       PLAYER & BOT CLASS
-       ========================================================================== */
-    class Character {
-      constructor(id, name, color, isBot = true, isImpostor = false) {
-        this.id = id;
-        this.name = name;
-        this.color = color;
-        this.isBot = isBot;
-        this.isImpostor = isImpostor;
-        this.x = 1100 + (Math.random() * 200 - 100);
-        this.y = 400 + (Math.random() * 200 - 100);
-        this.radius = 22;
-        this.speed = 3.8;
-        this.isDead = false;
-        this.inVent = false;
-        this.currentVentId = null;
-        this.tasks = [1, 2, 3, 4, 5, 6];
-        this.completedTasks = [];
-        this.facing = 'right';
-        this.animFrame = 0;
-        this.isMoving = false;
-
-        // AI Bot Navigation Properties
-        this.targetX = this.x;
-        this.targetY = this.y;
-        this.aiState = 'IDLE'; // IDLE, WALKING_TO_TASK, DOING_TASK, CHASING_KILL
-        this.aiTimer = 0;
-        this.killCooldown = 15; // Seconds
-      }
-
-      update(deltaTime) {
-        if (this.isDead || this.inVent) return;
-
-        // Decrement Kill Cooldown for Impostor
-        if (this.isImpostor && this.killCooldown > 0) {
-          this.killCooldown -= deltaTime;
-        }
-
-        if (this.isBot) {
-          this.updateBotAI(deltaTime);
-        }
-
-        // Footstep sounds for local player
-        if (!this.isBot && this.isMoving && Math.random() < 0.15) {
-          sound.playStep();
-        }
-      }
-
-      updateBotAI(deltaTime) {
-        this.aiTimer -= deltaTime;
-
-        // AI Logic Decision State Machine
-        if (this.aiTimer <= 0) {
-          this.aiTimer = 2 + Math.random() * 3;
-
-          if (this.isImpostor) {
-            // Impostor AI Decision
-            const target = players.find(p => !p.isImpostor && !p.isDead && Math.hypot(p.x - this.x, p.y - this.y) < 400);
-            if (target && this.killCooldown <= 0) {
-              this.aiState = 'CHASING_KILL';
-              this.targetX = target.x;
-              this.targetY = target.y;
-            } else {
-              // Wander around tasks/vents
-              const randomRoom = ROOMS[Math.floor(Math.random() * ROOMS.length)];
-              this.targetX = randomRoom.x + randomRoom.w / 2;
-              this.targetY = randomRoom.y + randomRoom.h / 2;
-            }
-          } else {
-            // Crewmate AI Decision
-            if (this.completedTasks.length < this.tasks.length) {
-              const pendingTaskId = this.tasks.find(tId => !this.completedTasks.includes(tId));
-              const taskObj = TASK_LOCATIONS.find(t => t.id === pendingTaskId);
-              if (taskObj) {
-                this.targetX = taskObj.x;
-                this.targetY = taskObj.y;
-                this.aiState = 'WALKING_TO_TASK';
-              }
-            } else {
-              // Wander
-              const randomRoom = ROOMS[Math.floor(Math.random() * ROOMS.length)];
-              this.targetX = randomRoom.x + Math.random() * randomRoom.w;
-              this.targetY = randomRoom.y + Math.random() * randomRoom.h;
-            }
-          }
-        }
-
-        // Execute AI Movement towards target
-        const dx = this.targetX - this.x;
-        const dy = this.targetY - this.y;
-        const dist = Math.hypot(dx, dy);
-
-        if (dist > 15) {
-          const vx = (dx / dist) * (this.speed * 0.7);
-          const vy = (dy / dist) * (this.speed * 0.7);
-          this.moveWithCollision(vx, vy);
-          this.isMoving = true;
-          this.facing = vx > 0 ? 'right' : 'left';
-        } else {
-          this.isMoving = false;
-          // If Crewmate arrived at task, complete it after time
-          if (!this.isImpostor && this.aiState === 'WALKING_TO_TASK') {
-            this.aiState = 'DOING_TASK';
-            setTimeout(() => {
-              const pendingTaskId = this.tasks.find(tId => !this.completedTasks.includes(tId));
-              if (pendingTaskId && !this.completedTasks.includes(pendingTaskId)) {
-                this.completedTasks.push(pendingTaskId);
-                checkTaskProgress();
-              }
-            }, 3000);
-          }
-          // If Impostor arrived at victim, attempt kill
-          if (this.isImpostor && this.aiState === 'CHASING_KILL' && this.killCooldown <= 0) {
-            const victim = players.find(p => !p.isImpostor && !p.isDead && Math.hypot(p.x - this.x, p.y - this.y) < 60);
-            if (victim) {
-              killPlayer(this, victim);
-              this.killCooldown = 20;
-            }
-          }
-        }
-      }
-
-      moveWithCollision(vx, vy) {
-        let nextX = this.x + vx;
-        let nextY = this.y + vy;
-
-        // Check station walls collision
-        for (const wall of WALLS) {
-          if (
-            nextX + this.radius > wall.x &&
-            nextX - this.radius < wall.x + wall.w &&
-            nextY + this.radius > wall.y &&
-            nextY - this.radius < wall.y + wall.h
-          ) {
-            // Simple bounce/stop collision handling
-            return;
-          }
-        }
-
-        // Clamp to map limits
-        this.x = Math.max(120, Math.min(MAP_WIDTH - 120, nextX));
-        this.y = Math.max(120, Math.min(MAP_HEIGHT - 120, nextY));
-      }
-
-      draw(ctx) {
-        if (this.inVent) return;
-
-        ctx.save();
-        ctx.translate(this.x, this.y);
-
-        if (this.isDead) {
-          // Dead Ghost Rendering
-          ctx.globalAlpha = 0.5;
-          ctx.fillStyle = COLORS[this.color] || '#ffffff';
-          ctx.beginPath();
-          ctx.arc(0, 0, this.radius, Math.PI, 0, false);
-          ctx.lineTo(this.radius, this.radius);
-          ctx.lineTo(-this.radius, this.radius);
-          ctx.closePath();
-          ctx.fill();
-
-          // Visor
-          ctx.fillStyle = '#93c5fd';
-          ctx.beginPath();
-          ctx.ellipse(this.facing === 'right' ? 6 : -6, -5, 8, 5, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.restore();
-          return;
-        }
-
-        // Scale if facing left
-        if (this.facing === 'left') {
-          ctx.scale(-1, 1);
-        }
-
-        // Backpack
-        ctx.fillStyle = COLORS[this.color];
-        ctx.beginPath();
-        ctx.roundRect(-this.radius - 6, -12, 10, 22, 4);
-        ctx.fill();
-
-        // Main Body Capsule
-        ctx.beginPath();
-        ctx.roundRect(-this.radius, -25, this.radius * 2, 42, 18);
-        ctx.fill();
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        // Visor (Goggles)
-        ctx.fillStyle = '#a5f3fc';
-        ctx.beginPath();
-        ctx.ellipse(6, -10, 11, 7, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-
-        // Visor Shine
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.ellipse(8, -12, 4, 2, Math.PI / 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
-
-        // Draw Player Nickname & Tag
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 12px Fredoka, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 4;
-        
-        // Impostors see each other in red
-        if (player && player.isImpostor && this.isImpostor) {
-          ctx.fillStyle = '#ef4444';
-        }
-        ctx.fillText(this.name, this.x, this.y - 32);
-        ctx.shadowBlur = 0;
-      }
-    }
-
-    /* ==========================================================================
-       INITIALIZATION & INTERFACE HANDLERS
-       ========================================================================== */
-    window.onload = function() {
-      canvas = document.getElementById('gameCanvas');
-      ctx = canvas.getContext('2d');
-      minimapCanvas = document.getElementById('minimapCanvas');
-      minimapCtx = minimapCanvas.getContext('2d');
-
-      resizeCanvas();
-      window.addEventListener('resize', resizeCanvas);
-
-      initColorPicker();
-      setupEventListeners();
-
-      // Start animation render loop
-      requestAnimationFrame(gameLoop);
-    };
-
-    function resizeCanvas() {
-      const container = document.getElementById('game-app');
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
-      
-      minimapCanvas.width = 600;
-      minimapCanvas.height = 400;
-    }
-
-    function initColorPicker() {
-      const container = document.getElementById('color-picker');
       container.innerHTML = '';
-      Object.keys(COLORS).forEach((colorKey, index) => {
-        const btn = document.createElement('button');
-        btn.className = `w-8 h-8 rounded-full border-2 border-white/40 shadow-md transition transform hover:scale-110 ${index === 0 ? 'ring-4 ring-blue-400 scale-110' : ''}`;
-        btn.style.backgroundColor = COLORS[colorKey];
-        btn.onclick = () => {
-          document.querySelectorAll('#color-picker button').forEach(b => b.classList.remove('ring-4', 'ring-blue-400', 'scale-110'));
-          btn.classList.add('ring-4', 'ring-blue-400', 'scale-110');
-          selectedColor = colorKey;
-        };
-        container.appendChild(btn);
-      });
-    }
+      container.appendChild(renderer.domElement);
 
-    function setupEventListeners() {
-      // Keypress Handlers
-      window.addEventListener('keydown', e => {
-        keys[e.key.toLowerCase()] = true;
-        if (e.key === 'e' || e.key === ' ') handleUseAction();
-        if (e.key === 'r') handleReportAction();
-        if (e.key === 'q') handleKillAction();
-        if (e.key === 'v') handleVentAction();
-      });
+      // Setup Inputs
+      setupMouseKeyboard();
 
-      window.addEventListener('keyup', e => {
-        keys[e.key.toLowerCase()] = false;
-      });
+      // Window Resize Listener
+      window.addEventListener('resize', onWindowResize);
 
-      // UI Button Clicks
-      document.getElementById('btn-play-solo').onclick = () => startNewGame();
-      document.getElementById('btn-how-to').onclick = () => document.getElementById('how-to-modal').classList.remove('hidden');
-      document.getElementById('close-how-to').onclick = () => document.getElementById('how-to-modal').classList.add('hidden');
-      document.getElementById('map-toggle-btn').onclick = toggleMinimap;
-      document.getElementById('close-minimap-btn').onclick = toggleMinimap;
-      document.getElementById('close-task-btn').onclick = closeTaskModal;
-
-      // HUD Action Buttons
-      document.getElementById('btn-use').onclick = handleUseAction;
-      document.getElementById('btn-report').onclick = handleReportAction;
-      document.getElementById('btn-kill').onclick = handleKillAction;
-      document.getElementById('btn-vent').onclick = handleVentAction;
-      document.getElementById('btn-sabotage').onclick = triggerSabotage;
-
-      // Meeting Controls
-      document.getElementById('btn-skip-vote').onclick = () => castVote(null);
-      document.getElementById('btn-send-chat').onclick = sendChatMessage;
-      document.getElementById('chat-input').onkeypress = (e) => { if (e.key === 'Enter') sendChatMessage(); };
-      document.getElementById('btn-play-again').onclick = () => {
-        document.getElementById('game-over-modal').classList.add('hidden');
-        startNewGame();
-      };
-
-      // Touch Joystick Events (Mobile)
-      setupTouchJoystick();
-    }
-
-    function setupTouchJoystick() {
-      const container = document.getElementById('joystick-container');
-      const knob = document.getElementById('joystick-knob');
-
-      container.addEventListener('touchstart', e => {
-        const touch = e.touches[0];
-        const rect = container.getBoundingClientRect();
-        joystick.active = true;
-        joystick.startX = rect.left + rect.width / 2;
-        joystick.startY = rect.top + rect.height / 2;
-      });
-
-      container.addEventListener('touchmove', e => {
-        if (!joystick.active) return;
-        const touch = e.touches[0];
-        const dx = touch.clientX - joystick.startX;
-        const dy = touch.clientY - joystick.startY;
-        const dist = Math.min(40, Math.hypot(dx, dy));
-        const angle = Math.atan2(dy, dx);
-
-        joystick.dirX = Math.cos(angle) * (dist / 40);
-        joystick.dirY = Math.sin(angle) * (dist / 40);
-
-        knob.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px)`;
-      });
-
-      const resetJoystick = () => {
-        joystick.active = false;
-        joystick.dirX = 0;
-        joystick.dirY = 0;
-        knob.style.transform = `translate(0px, 0px)`;
-      };
-
-      container.addEventListener('touchend', resetJoystick);
-      container.addEventListener('touchcancel', resetJoystick);
+      // Start Animation Loop
+      animate();
     }
 
     /* ==========================================================================
-       GAME INITIALIZATION & LOOP
+       CONTROLS & EVENT LISTENERS
        ========================================================================== */
-    function startNewGame() {
+    function setupMouseKeyboard() {
+      // Keyboard input
+      window.addEventListener('keydown', (e) => {
+        const key = e.key.toLowerCase();
+        if (key === 'w' || key === 'arrowup') keys.w = true;
+        if (key === 'a' || key === 'arrowleft') keys.a = true;
+        if (key === 's' || key === 'arrowdown') keys.s = true;
+        if (key === 'd' || key === 'arrowright') keys.d = true;
+        if (e.code === 'Space') keys.space = true;
+      });
+
+      window.addEventListener('keyup', (e) => {
+        const key = e.key.toLowerCase();
+        if (key === 'w' || key === 'arrowup') keys.w = false;
+        if (key === 'a' || key === 'arrowleft') keys.a = false;
+        if (key === 's' || key === 'arrowdown') keys.s = false;
+        if (key === 'd' || key === 'arrowright') keys.d = false;
+        if (e.code === 'Space') keys.space = false;
+      });
+
+      // Mouse drag look (Fallback when Pointer Lock isn't locked)
+      let isDragging = false;
+      let previousMousePosition = { x: 0, y: 0 };
+
+      container.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        isMouseDown = true;
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+        triggerPlayerAction();
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+        isMouseDown = false;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (document.pointerLockElement === container) {
+          // Pointer lock mode
+          yaw -= e.movementX * 0.0025;
+          pitch -= e.movementY * 0.0025;
+          pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+        } else if (isDragging) {
+          // Fallback mouse drag mode
+          const deltaX = e.clientX - previousMousePosition.x;
+          const deltaY = e.clientY - previousMousePosition.y;
+          yaw -= deltaX * 0.003;
+          pitch -= deltaY * 0.003;
+          pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+          previousMousePosition = { x: e.clientX, y: e.clientY };
+        }
+      });
+    }
+
+    function onWindowResize() {
+      if (!camera || !renderer || !container) return;
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    /* ==========================================================================
+       BUILD GAME SCENES (ZOMBIE vs MUSEUM)
+       ========================================================================== */
+    function clearScene() {
+      while(scene.children.length > 0){ 
+        scene.remove(scene.children[0]); 
+      }
+      zombies = [];
+      museumStatues = [];
+      items = [];
+    }
+
+    function buildScene(mode) {
+      clearScene();
+
+      // Reset Player State
+      player.position.set(0, 1.6, 0);
+      yaw = 0; pitch = 0;
+      player.health = 100;
+      player.score = 0;
+      player.ammo = 30;
+      player.sanity = 100;
+      player.relicsCollected = 0;
+
+      // Ambient Light
+      const ambientLight = new THREE.AmbientLight(0x111122, mode === 'zombie' ? 0.4 : 0.15);
+      scene.add(ambientLight);
+
+      if (mode === 'zombie') {
+        // Red directional moonlight
+        const moonLight = new THREE.DirectionalLight(0xff4444, 0.5);
+        moonLight.position.set(10, 20, 10);
+        moonLight.castShadow = true;
+        scene.add(moonLight);
+
+        // Ground / Arena Floor
+        const floorGeo = new THREE.PlaneGeometry(60, 60);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1a1d24, roughness: 0.8 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Arena Outer Walls
+        buildBoxWall(0, 3, -30, 60, 6, 1);
+        buildBoxWall(0, 3, 30, 60, 6, 1);
+        buildBoxWall(-30, 3, 0, 1, 6, 60);
+        buildBoxWall(30, 3, 0, 1, 6, 60);
+
+        // Spawn Initial Zombies
+        for(let i=0; i<6; i++) spawnZombie();
+        // Spawn Ammo Box
+        spawnItem('ammo', 5, -5);
+        spawnItem('ammo', -10, 10);
+
+        // HUD Update
+        document.getElementById('txt-mode-title').textContent = 'ZOMBIE APOKALIPS';
+        document.getElementById('txt-mode-title').className = 'block text-[10px] font-bold font-sci text-red-400 uppercase tracking-widest';
+        document.getElementById('lbl-secondary').textContent = 'PELURU';
+        document.getElementById('icon-secondary').className = 'fa-solid fa-gun text-amber-400 text-lg';
+        document.getElementById('txt-objective').textContent = 'Hapuskan zombie & bertahan hidup!';
+
+      } else if (mode === 'museum') {
+        // Museum Dark Ambience + Flashlight
+        flashlight = new THREE.SpotLight(0xfff5ea, 2.5, 25, Math.PI / 6, 0.5);
+        flashlight.castShadow = true;
+        scene.add(flashlight);
+        scene.add(flashlight.target);
+
+        // Museum Floor (Marble style dark)
+        const floorGeo = new THREE.PlaneGeometry(50, 50);
+        floorMat = new THREE.MeshStandardMaterial({ color: 0x0f0e17, roughness: 0.3, metalness: 0.2 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Museum Walls & Pillars
+        buildBoxWall(0, 4, -25, 50, 8, 1);
+        buildBoxWall(0, 4, 25, 50, 8, 1);
+        buildBoxWall(-25, 4, 0, 1, 8, 50);
+        buildBoxWall(25, 4, 0, 1, 8, 50);
+
+        // Pillars
+        for(let x = -15; x <= 15; x += 10) {
+          for(let z = -15; z <= 15; z += 10) {
+            if (x === 0 && z === 0) continue;
+            buildBoxWall(x, 4, z, 2, 8, 2);
+          }
+        }
+
+        // Spawn Cursed Statues
+        spawnMuseumStatue(8, 8);
+        spawnMuseumStatue(-12, -10);
+
+        // Spawn Relics
+        spawnItem('relic', -15, 15);
+        spawnItem('relic', 15, -15);
+        spawnItem('relic', 0, -20);
+
+        // HUD Update
+        document.getElementById('txt-mode-title').textContent = 'MUSEUM HORROR 3D';
+        document.getElementById('txt-mode-title').className = 'block text-[10px] font-bold font-sci text-purple-400 uppercase tracking-widest';
+        document.getElementById('lbl-secondary').textContent = 'KEWARASAN';
+        document.getElementById('icon-secondary').className = 'fa-solid fa-brain text-purple-400 text-lg';
+        document.getElementById('txt-objective').textContent = 'Kumpul 3 Relik Purba & elak Patung!';
+      }
+
+      updateHUD();
+    }
+
+    function buildBoxWall(x, y, z, w, h, d) {
+      const geo = new THREE.BoxGeometry(w, h, d);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x232733, roughness: 0.9 });
+      const wall = new THREE.Mesh(geo, mat);
+      wall.position.set(x, y, z);
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      scene.add(wall);
+    }
+
+    /* ==========================================================================
+       ENTITY SPAWNING LOGIC
+       ========================================================================== */
+    function spawnZombie() {
+      const group = new THREE.Group();
+
+      // Body
+      const bodyGeo = new THREE.CylinderGeometry(0.4, 0.3, 1.4, 8);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2e4c32 });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.position.y = 0.7;
+      body.castShadow = true;
+      group.add(body);
+
+      // Head
+      const headGeo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+      const headMat = new THREE.MeshStandardMaterial({ color: 0x4a7c50 });
+      const head = new THREE.Mesh(headGeo, headMat);
+      head.position.y = 1.6;
+      head.castShadow = true;
+      group.add(head);
+
+      // Glowing Red Eyes
+      const eyeGeo = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+      eyeL.position.set(-0.1, 1.65, 0.21);
+      const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+      eyeR.position.set(0.1, 1.65, 0.21);
+      group.add(eyeL);
+      group.add(eyeR);
+
+      // Spawn at random edge
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 18 + Math.random() * 8;
+      group.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+
+      group.userData = { health: 30, speed: 2.2 + Math.random() * 0.8 };
+      scene.add(group);
+      zombies.push(group);
+    }
+
+    function spawnMuseumStatue(x, z) {
+      const group = new THREE.Group();
+
+      // Stone Pedestal
+      const baseGeo = new THREE.BoxGeometry(1, 0.4, 1);
+      const stoneMat = new THREE.MeshStandardMaterial({ color: 0x888899, roughness: 0.5 });
+      const base = new THREE.Mesh(baseGeo, stoneMat);
+      base.position.y = 0.2;
+      group.add(base);
+
+      // Statue Figure
+      const figGeo = new THREE.CylinderGeometry(0.2, 0.4, 1.8, 8);
+      const fig = new THREE.Mesh(figGeo, stoneMat);
+      fig.position.y = 1.3;
+      fig.castShadow = true;
+      group.add(fig);
+
+      group.position.set(x, 0, z);
+      scene.add(group);
+      museumStatues.push(group);
+    }
+
+    function spawnItem(type, x, z) {
+      const geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+      const color = type === 'ammo' ? 0xf59e0b : 0xa855f7;
+      const mat = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.4 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, 0.4, z);
+      mesh.userData = { type: type };
+      scene.add(mesh);
+      items.push(mesh);
+    }
+
+    /* ==========================================================================
+       USER ACTIONS (SHOOTING & RELIC COLLECTION)
+       ========================================================================== */
+    function triggerPlayerAction() {
+      if (!isRunning) return;
       sound.init();
-      document.getElementById('start-menu').classList.add('hidden');
-      document.getElementById('hud-top').classList.remove('hidden');
-      document.getElementById('hud-actions').classList.remove('hidden');
-      
-      // Detect touch device to toggle joystick display
-      if ('ontouchstart' in window) {
-        document.getElementById('joystick-container').classList.remove('hidden');
-      }
 
-      const nickname = document.getElementById('player-nickname').value || 'SpaceCadet';
+      if (activeMode === 'zombie') {
+        const now = clock.getElapsedTime();
+        if (now - lastShotTime < 0.2) return; // Rate of fire limiter
+        if (player.ammo <= 0) return;
 
-      // Create Player
-      player = new Character('p1', nickname, selectedColor, false, false);
+        player.ammo--;
+        lastShotTime = now;
+        sound.playShoot();
 
-      // Create 5 AI Bots with unique colors
-      const botNames = ['Nova', 'Orbit', 'Comet', 'Astro', 'Ziggy'];
-      const availableColors = Object.keys(COLORS).filter(c => c !== selectedColor);
-      
-      players = [player];
-      for (let i = 0; i < 5; i++) {
-        const botColor = availableColors[i % availableColors.length];
-        players.push(new Character(`bot_${i}`, botNames[i], botColor, true, false));
-      }
+        // Raycast Shoot
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+        const intersects = raycaster.intersectObjects(zombies.map(z => z.children).flat());
 
-      // Randomly assign 1 Impostor ("Hey-postor")
-      const impostorIdx = Math.floor(Math.random() * players.length);
-      players[impostorIdx].isImpostor = true;
+        if (intersects.length > 0) {
+          const hitObj = intersects[0].object;
+          const zombieGroup = hitObj.parent;
+          if (zombieGroup && zombieGroup.userData) {
+            zombieGroup.userData.health -= 15;
+            sound.playHit();
 
-      // Update HUD for Impostor buttons
-      const roleBadge = document.getElementById('role-badge');
-      if (player.isImpostor) {
-        roleBadge.textContent = 'HEY-POSTOR';
-        roleBadge.className = 'bg-red-600/90 text-white text-xs md:text-sm font-black px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg border border-white/20 pointer-events-auto';
-        document.getElementById('btn-kill').classList.remove('hidden');
-        document.getElementById('btn-vent').classList.remove('hidden');
-        document.getElementById('btn-sabotage').classList.remove('hidden');
-      } else {
-        roleBadge.textContent = 'CREWMATE';
-        roleBadge.className = 'bg-blue-600/90 text-white text-xs md:text-sm font-black px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg border border-white/20 pointer-events-auto';
-        document.getElementById('btn-kill').classList.add('hidden');
-        document.getElementById('btn-vent').classList.add('hidden');
-        document.getElementById('btn-sabotage').classList.add('hidden');
-      }
-
-      deadBodies = [];
-      activeSabotage = null;
-      document.getElementById('sabotage-banner').classList.add('hidden');
-      
-      checkTaskProgress();
-      gameState = 'PLAYING';
-    }
-
-    let lastTime = performance.now();
-    function gameLoop(currentTime) {
-      const deltaTime = (currentTime - lastTime) / 1000;
-      lastTime = currentTime;
-
-      if (gameState === 'PLAYING') {
-        updateGame(deltaTime);
-        renderGame();
-      }
-
-      requestAnimationFrame(gameLoop);
-    }
-
-    /* ==========================================================================
-       UPDATE & PHYSICS
-       ========================================================================== */
-    function updateGame(deltaTime) {
-      // Local Player Input Handling
-      let moveX = 0;
-      let moveY = 0;
-
-      if (keys['w'] || keys['arrowup']) moveY -= 1;
-      if (keys['s'] || keys['arrowdown']) moveY += 1;
-      if (keys['a'] || keys['arrowleft']) moveX -= 1;
-      if (keys['d'] || keys['arrowright']) moveX += 1;
-
-      if (joystick.active) {
-        moveX = joystick.dirX;
-        moveY = joystick.dirY;
-      }
-
-      if ((moveX !== 0 || moveY !== 0) && !player.inVent && !player.isDead) {
-        const len = Math.hypot(moveX, moveY);
-        const vx = (moveX / (len || 1)) * player.speed;
-        const vy = (moveY / (len || 1)) * player.speed;
-        player.moveWithCollision(vx, vy);
-        player.isMoving = true;
-        player.facing = moveX > 0 ? 'right' : 'left';
-      } else {
-        player.isMoving = false;
-      }
-
-      // Update all characters & bots
-      players.forEach(p => p.update(deltaTime));
-
-      // Camera smooth follow local player
-      cameraX = player.x - canvas.width / 2;
-      cameraY = player.y - canvas.height / 2;
-
-      // Update Kill button state for local Impostor
-      if (player.isImpostor) {
-        const killBtn = document.getElementById('btn-kill');
-        const victim = players.find(p => p !== player && !p.isImpostor && !p.isDead && Math.hypot(p.x - player.x, p.y - player.y) < 70);
-        killBtn.disabled = !victim || player.killCooldown > 0;
-      }
-    }
-
-    /* ==========================================================================
-       RENDER ENGINE
-       ========================================================================== */
-    function renderGame() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      ctx.save();
-      // Apply Camera Center Translation
-      ctx.translate(-cameraX, -cameraY);
-
-      // 1. Draw Space Station Floor
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
-
-      // Grid Floor Pattern
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 2;
-      for (let x = 0; x < MAP_WIDTH; x += 100) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, MAP_HEIGHT); ctx.stroke();
-      }
-      for (let y = 0; y < MAP_HEIGHT; y += 100) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(MAP_WIDTH, y); ctx.stroke();
-      }
-
-      // 2. Draw Rooms
-      ROOMS.forEach(room => {
-        ctx.fillStyle = room.color;
-        ctx.fillRect(room.x, room.y, room.w, room.h);
-        ctx.strokeStyle = '#334155';
-        ctx.lineWidth = 6;
-        ctx.strokeRect(room.x, room.y, room.w, room.h);
-
-        // Room Label Text
-        ctx.fillStyle = 'rgba(255,255,255,0.15)';
-        ctx.font = '900 28px Fredoka, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(room.name.toUpperCase(), room.x + room.w / 2, room.y + room.h / 2);
-      });
-
-      // 3. Draw Walls
-      ctx.fillStyle = '#334155';
-      WALLS.forEach(wall => {
-        ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
-      });
-
-      // 4. Draw Task Consoles
-      TASK_LOCATIONS.forEach(task => {
-        const isCompleted = player.completedTasks.includes(task.id);
-        ctx.fillStyle = isCompleted ? '#10b981' : '#f59e0b';
-        ctx.beginPath();
-        ctx.arc(task.x, task.y, 14, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Pulsing Outline if player is near
-        if (!isCompleted && Math.hypot(player.x - task.x, player.y - task.y) < 60) {
-          ctx.strokeStyle = '#3b82f6';
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.arc(task.x, task.y, 20, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-      });
-
-      // 5. Draw Vents
-      VENTS.forEach(vent => {
-        ctx.fillStyle = '#475569';
-        ctx.fillRect(vent.x - 16, vent.y - 12, 32, 24);
-        ctx.strokeStyle = '#94a3b8';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(vent.x - 16, vent.y - 12, 32, 24);
-      });
-
-      // 6. Draw Dead Bodies
-      deadBodies.forEach(body => {
-        ctx.fillStyle = COLORS[body.color];
-        ctx.beginPath();
-        ctx.ellipse(body.x, body.y, 18, 10, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Bone graphics
-        ctx.fillStyle = '#e2e8f0';
-        ctx.fillRect(body.x - 3, body.y - 14, 6, 10);
-        ctx.beginPath(); ctx.arc(body.x - 3, body.y - 14, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(body.x + 3, body.y - 14, 4, 0, Math.PI * 2); ctx.fill();
-      });
-
-      // 7. Draw Characters (Sorted by Y position for depth)
-      const renderList = [...players].sort((a, b) => a.y - b.y);
-      renderList.forEach(p => p.draw(ctx));
-
-      // 8. Lights Out Sabotage Darkness Overlay
-      if (activeSabotage === 'LIGHTS' && !player.isDead) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.88)';
-        ctx.beginPath();
-        ctx.rect(cameraX, cameraY, canvas.width, canvas.height);
-        // Torchlight radius around player
-        ctx.arc(player.x, player.y, player.isImpostor ? 220 : 70, 0, Math.PI * 2, true);
-        ctx.fill();
-      }
-
-      ctx.restore();
-    }
-
-    /* ==========================================================================
-       ACTIONS, SABOTAGE & VENTS
-       ========================================================================== */
-    function handleUseAction() {
-      if (player.isDead || player.inVent) return;
-
-      // Check proximity to task
-      const nearbyTask = TASK_LOCATIONS.find(t => Math.hypot(player.x - t.x, player.y - t.y) < 60);
-      if (nearbyTask) {
-        if (!player.completedTasks.includes(nearbyTask.id)) {
-          openTaskModal(nearbyTask);
-        }
-      }
-    }
-
-    function handleReportAction() {
-      if (player.isDead) return;
-      // Check proximity to dead body
-      const body = deadBodies.find(b => Math.hypot(player.x - b.x, player.y - b.y) < 90);
-      if (body || Math.hypot(player.x - 1100, player.y - 400) < 80) { // Emergency button in Cafeteria
-        startEmergencyMeeting(body ? `Body Reported by ${player.name}` : `Emergency Meeting Called by ${player.name}`);
-      }
-    }
-
-    function handleKillAction() {
-      if (!player.isImpostor || player.isDead || player.killCooldown > 0) return;
-      const victim = players.find(p => p !== player && !p.isImpostor && !p.isDead && Math.hypot(p.x - player.x, p.y - player.y) < 70);
-      if (victim) {
-        killPlayer(player, victim);
-        player.killCooldown = 20;
-      }
-    }
-
-    function handleVentAction() {
-      if (!player.isImpostor || player.isDead) return;
-      if (!player.inVent) {
-        const vent = VENTS.find(v => Math.hypot(player.x - v.x, player.y - v.y) < 60);
-        if (vent) {
-          player.inVent = true;
-          player.currentVentId = vent.id;
-          sound.playVent();
-        }
-      } else {
-        // Move to next vent
-        const currIdx = VENTS.findIndex(v => v.id === player.currentVentId);
-        const nextVent = VENTS[(currIdx + 1) % VENTS.length];
-        player.x = nextVent.x;
-        player.y = nextVent.y;
-        player.currentVentId = nextVent.id;
-        player.inVent = false;
-        sound.playVent();
-      }
-    }
-
-    function killPlayer(killer, victim) {
-      victim.isDead = true;
-      deadBodies.push({ x: victim.x, y: victim.y, color: victim.color });
-      sound.playKill();
-      checkWinConditions();
-    }
-
-    function triggerSabotage() {
-      if (!player.isImpostor || activeSabotage) return;
-      activeSabotage = Math.random() < 0.5 ? 'O2' : 'LIGHTS';
-      sabotageTimer = 30;
-
-      const banner = document.getElementById('sabotage-banner');
-      banner.classList.remove('hidden');
-      sound.playAlarm();
-
-      if (activeSabotage === 'O2') {
-        document.getElementById('sabotage-text').textContent = 'O2 CRITICAL: 30s!';
-        sabotageInterval = setInterval(() => {
-          sabotageTimer--;
-          document.getElementById('sabotage-text').textContent = `O2 CRITICAL: ${sabotageTimer}s!`;
-          if (sabotageTimer <= 0) {
-            clearInterval(sabotageInterval);
-            triggerGameOver('HEY-POSTOR WINS', 'The Crewmates failed to repair critical Oxygen systems!');
-          }
-        }, 1000);
-      } else {
-        document.getElementById('sabotage-text').textContent = 'LIGHTS OUT: REPAIR IN ELECTRICAL!';
-      }
-    }
-
-    /* ==========================================================================
-       TASK MINI-GAMES
-       ========================================================================== */
-    function openTaskModal(task) {
-      const modal = document.getElementById('task-modal');
-      const title = document.getElementById('task-title');
-      const content = document.getElementById('task-content');
-
-      title.textContent = task.name;
-      content.innerHTML = '';
-      modal.classList.remove('hidden');
-
-      if (task.type === 'wiring') {
-        renderWiringTask(content, task.id);
-      } else if (task.type === 'keypad') {
-        renderKeypadTask(content, task.id);
-      } else if (task.type === 'sliders') {
-        renderSlidersTask(content, task.id);
-      } else if (task.type === 'hold') {
-        renderHoldTask(content, task.id);
-      }
-    }
-
-    function closeTaskModal() {
-      document.getElementById('task-modal').classList.add('hidden');
-    }
-
-    function completeTask(taskId) {
-      if (!player.completedTasks.includes(taskId)) {
-        player.completedTasks.push(taskId);
-        sound.playTaskComplete();
-        checkTaskProgress();
-        closeTaskModal();
-        checkWinConditions();
-      }
-    }
-
-    function checkTaskProgress() {
-      let totalTasks = 0;
-      let completedTasks = 0;
-
-      players.forEach(p => {
-        if (!p.isImpostor) {
-          totalTasks += p.tasks.length;
-          completedTasks += p.completedTasks.length;
-        }
-      });
-
-      const percentage = Math.round((completedTasks / (totalTasks || 1)) * 100);
-      document.getElementById('task-progress-fill').style.width = `${percentage}%`;
-      document.getElementById('task-progress-text').textContent = `${percentage}%`;
-
-      if (percentage >= 100) {
-        triggerGameOver('CREWMATES WIN', 'All space station tasks have been completed!');
-      }
-    }
-
-    // Mini-game 1: Wiring Task
-    function renderWiringTask(container, taskId) {
-      container.innerHTML = `
-        <div class="flex justify-between w-full h-48 items-center px-6">
-          <div class="flex flex-col gap-4">
-            <button onclick="clickWire('red')" class="w-12 h-8 bg-red-500 rounded-lg border-2 border-white shadow-md active:scale-95"></button>
-            <button onclick="clickWire('blue')" class="w-12 h-8 bg-blue-500 rounded-lg border-2 border-white shadow-md active:scale-95"></button>
-            <button onclick="clickWire('yellow')" class="w-12 h-8 bg-yellow-500 rounded-lg border-2 border-white shadow-md active:scale-95"></button>
-          </div>
-          <div class="text-xs text-gray-400 font-bold uppercase tracking-widest">Connect Matching Wires</div>
-          <div class="flex flex-col gap-4">
-            <div id="target-blue" class="w-12 h-8 bg-blue-500 rounded-lg border-2 border-gray-600"></div>
-            <div id="target-red" class="w-12 h-8 bg-red-500 rounded-lg border-2 border-gray-600"></div>
-            <div id="target-yellow" class="w-12 h-8 bg-yellow-500 rounded-lg border-2 border-gray-600"></div>
-          </div>
-        </div>
-      `;
-      let connected = 0;
-      window.clickWire = (color) => {
-        const target = document.getElementById(`target-${color}`);
-        if (target && !target.dataset.done) {
-          target.dataset.done = 'true';
-          target.classList.replace('border-gray-600', 'border-green-400');
-          connected++;
-          if (connected >= 3) completeTask(taskId);
-        }
-      };
-    }
-
-    // Mini-game 2: Keypad Code Task
-    function renderKeypadTask(container, taskId) {
-      const targetCode = '7392';
-      let currentInput = '';
-      
-      const renderKeypad = () => {
-        container.innerHTML = `
-          <div class="flex flex-col items-center gap-3">
-            <div class="w-48 bg-gray-900 border-2 border-cyan-500 rounded-xl py-2 text-center text-2xl font-mono text-cyan-400 tracking-widest font-black">
-              ${currentInput.padEnd(4, '_')}
-            </div>
-            <div class="grid grid-cols-3 gap-2">
-              ${[1,2,3,4,5,6,7,8,9].map(num => `
-                <button onclick="pressNum('${num}')" class="w-12 h-12 bg-gray-800 hover:bg-gray-700 text-white font-black text-lg rounded-xl border border-gray-600 active:scale-90">${num}</button>
-              `).join('')}
-            </div>
-            <p class="text-[10px] text-gray-400 font-bold">REQUIRED CODE: <span class="text-yellow-400 font-mono">7392</span></p>
-          </div>
-        `;
-      };
-
-      window.pressNum = (num) => {
-        if (currentInput.length < 4) {
-          currentInput += num;
-          renderKeypad();
-          if (currentInput === targetCode) {
-            setTimeout(() => completeTask(taskId), 200);
-          } else if (currentInput.length === 4) {
-            setTimeout(() => { currentInput = ''; renderKeypad(); }, 400);
+            if (zombieGroup.userData.health <= 0) {
+              scene.remove(zombieGroup);
+              zombies = zombies.filter(z => z !== zombieGroup);
+              player.score += 100;
+              spawnZombie(); // Respawn a new one
+            }
           }
         }
-      };
-
-      renderKeypad();
-    }
-
-    // Mini-game 3: Calibrate Sliders
-    function renderSlidersTask(container, taskId) {
-      container.innerHTML = `
-        <div class="flex flex-col items-center gap-4 w-full px-8">
-          <label class="text-xs font-bold text-gray-300 uppercase">Align Energy Frequency</label>
-          <input type="range" id="task-slider" min="0" max="100" value="10" class="w-full h-3 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
-          <div class="text-xs font-mono font-bold text-cyan-400"><span id="slider-val">10</span>% / 100%</div>
-        </div>
-      `;
-      const slider = document.getElementById('task-slider');
-      slider.oninput = (e) => {
-        document.getElementById('slider-val').textContent = e.target.value;
-        if (parseInt(e.target.value) === 100) {
-          completeTask(taskId);
-        }
-      };
-    }
-
-    // Mini-game 4: Hold Button Task
-    function renderHoldTask(container, taskId) {
-      container.innerHTML = `
-        <div class="flex flex-col items-center gap-4">
-          <button id="hold-btn" class="w-28 h-28 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-500 border-4 border-cyan-300 font-black text-sm text-white shadow-xl active:scale-95 flex items-center justify-center">
-            HOLD ME
-          </button>
-          <div class="w-48 h-3 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
-            <div id="hold-progress" class="h-full bg-cyan-400 w-0 transition-all duration-75"></div>
-          </div>
-        </div>
-      `;
-
-      let holdTimer = null;
-      let progress = 0;
-      const btn = document.getElementById('hold-btn');
-      const bar = document.getElementById('hold-progress');
-
-      const startHold = () => {
-        holdTimer = setInterval(() => {
-          progress += 5;
-          bar.style.width = `${progress}%`;
-          if (progress >= 100) {
-            clearInterval(holdTimer);
-            completeTask(taskId);
-          }
-        }, 50);
-      };
-
-      const endHold = () => {
-        clearInterval(holdTimer);
-        progress = 0;
-        bar.style.width = '0%';
-      };
-
-      btn.onmousedown = startHold;
-      btn.onmouseup = endHold;
-      btn.ontouchstart = startHold;
-      btn.ontouchend = endHold;
-    }
-
-    /* ==========================================================================
-       EMERGENCY MEETINGS & VOTING SYSTEM
-       ========================================================================== */
-    function startEmergencyMeeting(titleReason) {
-      gameState = 'MEETING';
-      sound.playAlarm();
-      hasVoted = false;
-      votes = {};
-
-      document.getElementById('meeting-modal').classList.remove('hidden');
-      document.getElementById('meeting-header-title').innerHTML = `<i class="fa-solid fa-triangle-exclamation animate-bounce"></i> ${titleReason}`;
-      
-      renderVotingGrid();
-      document.getElementById('chat-messages').innerHTML = `<div class="text-gray-400 italic">System: Discussion started. Share suspicious behavior!</div>`;
-
-      // Start Voting Timer
-      meetingTimer = 30;
-      document.getElementById('voting-timer').textContent = `${meetingTimer}s`;
-      clearInterval(meetingInterval);
-      meetingInterval = setInterval(() => {
-        meetingTimer--;
-        document.getElementById('voting-timer').textContent = `${meetingTimer}s`;
-
-        // Simulate Random AI Chat & Votes
-        if (meetingTimer === 22) triggerAIChat();
-        if (meetingTimer === 15) simulateAIVotes();
-
-        if (meetingTimer <= 0) {
-          clearInterval(meetingInterval);
-          tallyVotes();
-        }
-      }, 1000);
-    }
-
-    function renderVotingGrid() {
-      const grid = document.getElementById('voting-players-grid');
-      grid.innerHTML = '';
-
-      players.forEach(p => {
-        const card = document.createElement('div');
-        card.className = `p-3 rounded-2xl border-2 flex items-center justify-between transition cursor-pointer ${
-          p.isDead ? 'bg-gray-900/40 border-gray-800 opacity-50 cursor-not-allowed' : 'bg-gray-800 hover:bg-gray-700 border-gray-700'
-        }`;
-
-        card.innerHTML = `
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-full border-2 border-white/50" style="background-color: ${COLORS[p.color]}"></div>
-            <div>
-              <span class="font-bold text-xs text-white block">${p.name} ${p === player ? '(You)' : ''}</span>
-              <span class="text-[10px] ${p.isDead ? 'text-red-400 font-bold' : 'text-gray-400'}">${p.isDead ? 'DEAD' : 'ALIVE'}</span>
-            </div>
-          </div>
-          ${!p.isDead && !hasVoted && p !== player ? `
-            <button onclick="castVote('${p.id}')" class="bg-red-600 hover:bg-red-500 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-xl uppercase shadow">
-              Vote
-            </button>
-          ` : ''}
-        `;
-        grid.appendChild(card);
-      });
-    }
-
-    function castVote(targetId) {
-      if (hasVoted) return;
-      hasVoted = true;
-      votes[player.id] = targetId;
-      document.getElementById('vote-status-text').textContent = targetId ? 'Vote Registered!' : 'You Skipped Voting.';
-      renderVotingGrid();
-    }
-
-    function triggerAIChat() {
-      const aliveBots = players.filter(p => p.isBot && !p.isDead);
-      if (aliveBots.length === 0) return;
-
-      const randomBot = aliveBots[Math.floor(Math.random() * aliveBots.length)];
-      const susTarget = players.find(p => !p.isDead && p !== randomBot);
-      const messages = [
-        `I saw ${susTarget ? susTarget.name : 'someone'} near Electrical!`,
-        `Where was the body found?`,
-        `I was completing tasks in MedBay.`,
-        `Looks pretty suspicious to me...`
-      ];
-
-      const msg = messages[Math.floor(Math.random() * messages.length)];
-      addChatMessage(randomBot.name, msg, COLORS[randomBot.color]);
-    }
-
-    function simulateAIVotes() {
-      players.forEach(p => {
-        if (p.isBot && !p.isDead && !votes[p.id]) {
-          const aliveOthers = players.filter(target => !target.isDead && target !== p);
-          // 30% chance to skip vote, else vote random alive player
-          if (Math.random() < 0.3) {
-            votes[p.id] = null;
-          } else {
-            const chosen = aliveOthers[Math.floor(Math.random() * aliveOthers.length)];
-            votes[p.id] = chosen ? chosen.id : null;
-          }
-        }
-      });
-    }
-
-    function sendChatMessage() {
-      const input = document.getElementById('chat-input');
-      const text = input.value.trim();
-      if (text) {
-        addChatMessage(player.name, text, COLORS[player.color]);
-        input.value = '';
+        updateHUD();
       }
     }
 
-    function addChatMessage(sender, text, color) {
-      const chatBox = document.getElementById('chat-messages');
-      const msgDiv = document.createElement('div');
-      msgDiv.className = 'bg-gray-800/80 p-2 rounded-xl border border-gray-700/50';
-      msgDiv.innerHTML = `<span class="font-bold" style="color: ${color}">${sender}:</span> ${text}`;
-      chatBox.appendChild(msgDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
+    /* ==========================================================================
+       GAME LOOP & UPDATE
+       ========================================================================== */
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+
+      if (isRunning) {
+        updatePlayerMovement(delta);
+
+        if (activeMode === 'zombie') {
+          updateZombies(delta);
+        } else if (activeMode === 'museum') {
+          updateMuseumStatues(delta);
+        }
+
+        checkItemPickups();
+      }
+
+      renderer.render(scene, camera);
     }
 
-    function tallyVotes() {
-      clearInterval(meetingInterval);
-      const voteCounts = {};
-      let skipCount = 0;
+    function updatePlayerMovement(delta) {
+      // Rotation
+      camera.rotation.copy(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
-      Object.values(votes).forEach(targetId => {
-        if (!targetId) {
-          skipCount++;
+      // Move vectors based on camera orientation
+      const moveSpeed = 5.0 * delta;
+      const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+      const side = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+
+      if (keys.w) player.position.addScaledVector(forward, moveSpeed);
+      if (keys.s) player.position.addScaledVector(forward, -moveSpeed);
+      if (keys.a) player.position.addScaledVector(side, -moveSpeed);
+      if (keys.d) player.position.addScaledVector(side, moveSpeed);
+
+      // Bound player inside wall limits
+      player.position.x = Math.max(-28, Math.min(28, player.position.x));
+      player.position.z = Math.max(-28, Math.min(28, player.position.z));
+
+      camera.position.copy(player.position);
+
+      // Flashlight Sync
+      if (flashlight) {
+        flashlight.position.copy(player.position);
+        const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
+        flashlight.target.position.copy(player.position).add(dir);
+      }
+    }
+
+    function updateZombies(delta) {
+      zombies.forEach(zombie => {
+        // Look at player
+        zombie.lookAt(player.position.x, zombie.position.y, player.position.z);
+
+        // Move towards player
+        const dir = new THREE.Vector3().subVectors(player.position, zombie.position);
+        dir.y = 0;
+        const dist = dir.length();
+        dir.normalize();
+
+        if (dist > 1.2) {
+          zombie.position.addScaledVector(dir, zombie.userData.speed * delta);
         } else {
-          voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+          // Attack player
+          damagePlayer(15 * delta);
+        }
+      });
+    }
+
+    function updateMuseumStatues(delta) {
+      museumStatues.forEach(statue => {
+        const dir = new THREE.Vector3().subVectors(player.position, statue.position);
+        dir.y = 0;
+        const dist = dir.length();
+        dir.normalize();
+
+        // Statue moves only when far and player looks away slightly
+        if (dist > 1.5) {
+          statue.position.addScaledVector(dir, 1.8 * delta);
+          statue.lookAt(player.position.x, statue.position.y, player.position.z);
+        } else {
+          damagePlayer(25 * delta);
         }
       });
 
-      let ejectedPlayer = null;
-      let maxVotes = skipCount;
+      // Sanity Drain
+      player.sanity = Math.max(0, player.sanity - 1.5 * delta);
+      if (player.sanity <= 0) damagePlayer(10 * delta);
+      updateHUD();
+    }
 
-      Object.keys(voteCounts).forEach(id => {
-        if (voteCounts[id] > maxVotes) {
-          maxVotes = voteCounts[id];
-          ejectedPlayer = players.find(p => p.id === id);
+    function checkItemPickups() {
+      items.forEach((item, index) => {
+        item.rotation.y += 0.02;
+        if (player.position.distanceTo(item.position) < 1.5) {
+          sound.playPickup();
+          if (item.userData.type === 'ammo') {
+            player.ammo = Math.min(player.maxAmmo, player.ammo + 30);
+          } else if (item.userData.type === 'relic') {
+            player.relicsCollected++;
+            player.score += 500;
+            if (player.relicsCollected >= 3) {
+              triggerVictory();
+            }
+          }
+          scene.remove(item);
+          items.splice(index, 1);
+          updateHUD();
         }
       });
+    }
 
-      document.getElementById('meeting-modal').classList.add('hidden');
+    function damagePlayer(amount) {
+      player.health -= amount;
+      flashDamage();
+      updateHUD();
 
-      if (ejectedPlayer) {
-        ejectedPlayer.isDead = true;
-        alert(`${ejectedPlayer.name} was ejected! ${ejectedPlayer.isImpostor ? 'They were the Hey-postor!' : 'They were NOT the Hey-postor!'}`);
+      if (player.health <= 0) {
+        triggerGameOver();
+      }
+    }
+
+    function flashDamage() {
+      const el = document.getElementById('damage-flash');
+      el.style.opacity = '0.8';
+      setTimeout(() => el.style.opacity = '0', 150);
+    }
+
+    function updateHUD() {
+      document.getElementById('txt-health').textContent = `${Math.ceil(player.health)} HP`;
+      document.getElementById('bar-health').style.width = `${Math.max(0, player.health)}%`;
+
+      if (activeMode === 'zombie') {
+        document.getElementById('txt-secondary').textContent = `${player.ammo} / ${player.maxAmmo}`;
+        document.getElementById('bar-secondary').style.width = `${(player.ammo / player.maxAmmo) * 100}%`;
       } else {
-        alert('No one was ejected (Tie or Skipped).');
+        document.getElementById('txt-secondary').textContent = `${Math.ceil(player.sanity)}%`;
+        document.getElementById('bar-secondary').style.width = `${player.sanity}%`;
       }
 
-      checkWinConditions();
-      if (gameState !== 'GAMEOVER') {
-        gameState = 'PLAYING';
-      }
+      document.getElementById('txt-score').textContent = `SKOR: ${player.score}`;
     }
 
     /* ==========================================================================
-       WIN & GAME OVER CONDITIONS
+       GAME STATE MANAGEMENT (START, RESTART, GAME OVER)
        ========================================================================== */
-    function checkWinConditions() {
-      const aliveImpostors = players.filter(p => p.isImpostor && !p.isDead);
-      const aliveCrewmates = players.filter(p => !p.isImpostor && !p.isDead);
+    window.launchGame = function(mode) {
+      sound.init();
+      activeMode = mode;
 
-      if (aliveImpostors.length === 0) {
-        triggerGameOver('CREWMATES WIN', 'The Hey-postor has been eliminated!');
-      } else if (aliveImpostors.length >= aliveCrewmates.length) {
-        triggerGameOver('HEY-POSTOR WINS', 'The Hey-postor took control of the station!');
+      document.getElementById('menu-overlay').classList.add('hidden');
+      document.getElementById('btn-return-menu').classList.remove('hidden');
+      document.getElementById('hud-overlay').classList.remove('hidden');
+      document.getElementById('crosshair').classList.remove('hidden');
+
+      if (window.innerWidth < 768) {
+        document.getElementById('touch-controls').classList.remove('hidden');
+      } else {
+        document.getElementById('pointer-lock-notice').classList.remove('hidden');
       }
+
+      buildScene(mode);
+      isRunning = true;
+    };
+
+    window.requestControlLock = function() {
+      document.getElementById('pointer-lock-notice').classList.add('hidden');
+      if (container.requestPointerLock) {
+        container.requestPointerLock();
+      }
+    };
+
+    function triggerGameOver() {
+      isRunning = false;
+      document.exitPointerLock && document.exitPointerLock();
+      document.getElementById('modal-end').classList.remove('hidden');
+      document.getElementById('end-title').textContent = 'ANDA TEWAS!';
+      document.getElementById('end-title').className = 'text-4xl md:text-6xl font-black font-horror text-red-600 glow-red mb-2 uppercase';
+      document.getElementById('end-desc').textContent = activeMode === 'zombie' ? 'Kumpulan zombie telah menghapuskan anda.' : 'Patung berpuaka muzium telah merampas jiwa anda.';
+      document.getElementById('end-score').textContent = player.score;
     }
 
-    function triggerGameOver(title, subtitle) {
-      gameState = 'GAMEOVER';
-      document.getElementById('game-over-modal').classList.remove('hidden');
-      document.getElementById('game-over-title').textContent = title;
-      document.getElementById('game-over-subtitle').textContent = subtitle;
-
-      const impostorsList = document.getElementById('impostors-list');
-      impostorsList.innerHTML = '';
-      players.filter(p => p.isImpostor).forEach(imp => {
-        impostorsList.innerHTML += `
-          <div class="flex items-center gap-2">
-            <div class="w-6 h-6 rounded-full border" style="background-color: ${COLORS[imp.color]}"></div>
-            <span class="font-black text-red-400 text-sm">${imp.name}</span>
-          </div>
-        `;
-      });
+    function triggerVictory() {
+      isRunning = false;
+      document.exitPointerLock && document.exitPointerLock();
+      document.getElementById('modal-end').classList.remove('hidden');
+      document.getElementById('end-title').textContent = 'KEMENANGAN!';
+      document.getElementById('end-title').className = 'text-4xl md:text-6xl font-black font-sci text-emerald-400 mb-2 uppercase';
+      document.getElementById('end-desc').textContent = 'Anda berjaya mengumpul semua relik purba dan melarikan diri!';
+      document.getElementById('end-score').textContent = player.score;
     }
+
+    window.restartGame = function() {
+      document.getElementById('modal-end').classList.add('hidden');
+      if (activeMode) launchGame(activeMode);
+    };
+
+    window.returnToMenu = function() {
+      isRunning = false;
+      document.exitPointerLock && document.exitPointerLock();
+      document.getElementById('menu-overlay').classList.remove('hidden');
+      document.getElementById('btn-return-menu').classList.add('hidden');
+      document.getElementById('hud-overlay').classList.add('hidden');
+      document.getElementById('crosshair').classList.add('hidden');
+      document.getElementById('touch-controls').classList.add('hidden');
+      document.getElementById('pointer-lock-notice').classList.add('hidden');
+      document.getElementById('modal-end').classList.add('hidden');
+    };
 
     /* ==========================================================================
-       MINIMAP OVERLAY RENDERING
+       CODE VIEWER TAB SYSTEM
        ========================================================================== */
-    function toggleMinimap() {
-      const modal = document.getElementById('minimap-modal');
-      modal.classList.toggle('hidden');
+    window.switchCodeTab = function(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
 
-      if (!modal.classList.contains('hidden')) {
-        renderMinimap();
+      if (tab === 'html') {
+        document.getElementById('code-html').classList.remove('hidden');
+        document.getElementById('tab-btn-html').classList.add('active');
       }
-    }
+      if (tab === 'css') {
+        document.getElementById('code-css').classList.remove('hidden');
+        document.getElementById('tab-btn-css').classList.add('active');
+      }
+      if (tab === 'js') {
+        document.getElementById('code-js').classList.remove('hidden');
+        document.getElementById('tab-btn-js').classList.add('active');
+      }
+    };
 
-    function renderMinimap() {
-      minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-      const scaleX = minimapCanvas.width / MAP_WIDTH;
-      const scaleY = minimapCanvas.height / MAP_HEIGHT;
+    document.getElementById('btn-copy-code').onclick = () => {
+      const activeCode = document.querySelector('.tab-content:not(.hidden)').innerText;
+      
+      // Fallback copy using textarea execCommand
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = activeCode;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempTextArea);
 
-      // Draw Map Outline & Rooms
-      ROOMS.forEach(room => {
-        minimapCtx.fillStyle = '#334155';
-        minimapCtx.fillRect(room.x * scaleX, room.y * scaleY, room.w * scaleX, room.h * scaleY);
-        minimapCtx.strokeStyle = '#64748b';
-        minimapCtx.strokeRect(room.x * scaleX, room.y * scaleY, room.w * scaleX, room.h * scaleY);
-      });
+      const btnSpan = document.querySelector('#btn-copy-code span');
+      const originalText = btnSpan.textContent;
+      btnSpan.textContent = 'Berjaya Disalin!';
+      setTimeout(() => btnSpan.textContent = originalText, 1500);
+    };
 
-      // Draw Tasks Points
-      TASK_LOCATIONS.forEach(task => {
-        minimapCtx.fillStyle = player.completedTasks.includes(task.id) ? '#10b981' : '#f59e0b';
-        minimapCtx.beginPath();
-        minimapCtx.arc(task.x * scaleX, task.y * scaleY, 4, 0, Math.PI * 2);
-        minimapCtx.fill();
-      });
-
-      // Draw Local Player Dot
-      minimapCtx.fillStyle = '#3b82f6';
-      minimapCtx.beginPath();
-      minimapCtx.arc(player.x * scaleX, player.y * scaleY, 6, 0, Math.PI * 2);
-      minimapCtx.fill();
-      minimapCtx.strokeStyle = '#ffffff';
-      minimapCtx.lineWidth = 2;
-      minimapCtx.stroke();
-    }
+    // Initialize Engine on Load
+    window.onload = function() {
+      initEngine();
+    };
   </script>
 </body>
 </html>
